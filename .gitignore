@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.wasm
+wasm-engine/target/
+.env
+.DS_Store
+*.log
+.idea/
+.vscode/

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PlausiDen Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>PlausiDen Settings</h1>
+      <p class="subtitle">Configure your browsing noise generation profile</p>
+    </header>
+
+    <section class="section">
+      <h2>Profile</h2>
+      <p class="hint">Select a browsing persona preset. Each defines typical search engines, content categories, and activity levels.</p>
+      <div class="field">
+        <label for="profile-select">Active Profile</label>
+        <select id="profile-select">
+          <option value="casual">Casual User</option>
+          <option value="researcher">Academic Researcher</option>
+          <option value="journalist">Journalist / Investigator</option>
+        </select>
+      </div>
+      <div class="profile-desc" id="profile-desc"></div>
+    </section>
+
+    <section class="section">
+      <h2>Intensity</h2>
+      <p class="hint">Controls how many entries are generated per day. Higher intensity = more noise but more resource usage.</p>
+      <div class="field">
+        <label for="intensity-slider">Level: <strong id="intensity-label">Medium</strong></label>
+        <input type="range" id="intensity-slider" min="0" max="3" step="1" value="1">
+        <div class="slider-labels">
+          <span>Low</span>
+          <span>Medium</span>
+          <span>High</span>
+          <span>Max</span>
+        </div>
+      </div>
+      <div class="stat-hint" id="daily-estimate">Estimated: ~50 entries/day</div>
+    </section>
+
+    <section class="section">
+      <h2>Active Hours</h2>
+      <p class="hint">Generation only occurs during these hours (local time). Mimics your configured persona's waking schedule.</p>
+      <div class="field field-row">
+        <div>
+          <label for="hours-start">Start</label>
+          <input type="number" id="hours-start" min="0" max="23" value="8">
+        </div>
+        <span class="field-separator">to</span>
+        <div>
+          <label for="hours-end">End</label>
+          <input type="number" id="hours-end" min="1" max="24" value="23">
+        </div>
+      </div>
+      <label class="checkbox-label">
+        <input type="checkbox" id="use-profile-hours" checked>
+        Use profile defaults
+      </label>
+    </section>
+
+    <section class="section">
+      <h2>Categories</h2>
+      <p class="hint">Toggle which content categories appear in generated history. Unchecking all uses the profile default set.</p>
+      <div class="categories-grid" id="categories-grid">
+        <!-- Populated by JS -->
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Cookie Generation</h2>
+      <p class="hint">When enabled, realistic tracking cookies are set alongside history entries. This adds depth to the noise but may trigger cookie consent banners on some sites.</p>
+      <label class="checkbox-label">
+        <input type="checkbox" id="generate-cookies" checked>
+        Generate cookies
+      </label>
+    </section>
+
+    <div class="save-bar">
+      <span class="save-status" id="save-status"></span>
+      <button class="btn btn-primary" id="save-btn">Save Settings</button>
+    </div>
+
+    <footer class="footer">
+      <p>PlausiDen v0.1.0 &middot; Tier 0 &middot; All generation is local, no network traffic</p>
+    </footer>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

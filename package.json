@@ -1,0 +1,27 @@
+{
+  "name": "plausiden-browser-ext",
+  "version": "0.1.0",
+  "description": "Tier 0 plausible deniability browser extension -- pollutes browsing history, cookies, and ad profiles locally",
+  "private": true,
+  "scripts": {
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run build:chrome && npm run build:firefox",
+    "build:chrome": "bash ./scripts/build-chrome.sh",
+    "build:firefox": "bash ./scripts/build-firefox.sh",
+    "build:wasm": "bash ./scripts/build-wasm.sh",
+    "dev": "bash ./scripts/dev.sh",
+    "clean": "rm -rf dist/"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.268",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "esbuild": "^0.21.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

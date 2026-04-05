@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "PlausiDen",
+  "version": "0.1.0",
+  "description": "Privacy-preserving browsing noise generator",
+  "permissions": ["history", "cookies", "storage", "alarms"],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "action": {
+    "default_popup": "popup/popup.html"
+  },
+  "options_page": "options/options.html"
+}
