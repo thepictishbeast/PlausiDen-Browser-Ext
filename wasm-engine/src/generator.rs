@@ -358,7 +358,7 @@ mod tests {
                     let sessions = generate(&profile, intensity, 5);
                     for s in &sessions {
                         for e in &s.entries {
-                            for bad in [".example", ".invalid", ".test", ".localhost"] {
+                            for bad in [".example", ".invalid", ".test", ".localhost"] { // LEAK-JUSTIFIED: test-assertion literals, not emissions
                                 assert!(
                                     !e.url.contains(bad),
                                     "URL contains synthetic TLD {bad}: {} (flavour={flavour:?}, intensity={intensity:?}, seed={seed})",
