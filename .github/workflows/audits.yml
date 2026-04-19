@@ -64,15 +64,19 @@ jobs:
           if rg -l --glob '!target' --glob '!node_modules' --glob '!tests/' --glob '!*.md' --glob '!*.lock' \
             '\.(example|invalid|localhost|test)(/|"|'\''|$)|example\.(com|org|net)' \
             . > /tmp/leak-findings.txt 2>/dev/null; then
-            # Filter out lines that are doc comments (///, //!, //, #)
-            # and lines containing assert (test assertions allowlisting
-            # the patterns).
+            # Filter out: doc comments (///, //!, //, #), assert lines
+            # (unit-test allowlisting), AND lines bearing the
+            # `LEAK-JUSTIFIED:` annotation (designed-exception sites
+            # like BANNED_TLDS filter lists + the RFC 6761 self-check
+            # probe host). Keep in sync with
+            # scripts/audit/filter-cfg-test.py behaviour.
             real_hits=$(xargs rg -n '\.(example|invalid|localhost|test)(/|"|'\''|$)' < /tmp/leak-findings.txt 2>/dev/null | \
-              grep -v '^\s*///\|^\s*//!\|^\s*//\|assert\|#[[:space:]]' | \
+              grep -v '^\s*///\|^\s*//!\|^\s*//\|assert\|#[[:space:]]\|LEAK-JUSTIFIED:' | \
               wc -l || true)
             if [ "$real_hits" -gt 0 ]; then
               echo "::error::Synthetic-TLD leak in real code — $real_hits hit(s)"
-              xargs rg -n '\.(example|invalid|localhost|test)(/|"|'\''|$)' < /tmp/leak-findings.txt | head -20 || true
+              xargs rg -n '\.(example|invalid|localhost|test)(/|"|'\''|$)' < /tmp/leak-findings.txt | \
+                grep -v 'LEAK-JUSTIFIED:' | head -20 || true
               exit 1
             fi
           fi

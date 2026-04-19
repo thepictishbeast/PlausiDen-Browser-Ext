@@ -68,7 +68,7 @@ export function bannedTldFor(url: string): string | null {
   const schemeIdx = url.indexOf("://");
   if (schemeIdx < 0) return null;
   const afterScheme = url.slice(schemeIdx + 3);
-  const hostEnd = afterScheme.search(/[\/:?#]/);
+  const hostEnd = afterScheme.search(/[/:?#]/);
   const host = hostEnd < 0 ? afterScheme : afterScheme.slice(0, hostEnd);
   for (const tld of BANNED_TLDS) {
     if (host.endsWith(tld)) return tld;

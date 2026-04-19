@@ -62,13 +62,13 @@ export function redactSecrets(input: string): string {
     // Authorization headers
     s = s.replace(/\b(Bearer|Basic)\s+[A-Za-z0-9+/=_.-]{8,}\b/g, "$1 [REDACTED]");
     // Common API-key prefixes
-    s = s.replace(/\b(sk|pk|rk)-[A-Za-z0-9_\-]{16,}\b/g, "[REDACTED-KEY]");
+    s = s.replace(/\b(sk|pk|rk)-[A-Za-z0-9_-]{16,}\b/g, "[REDACTED-KEY]");
     s = s.replace(/\bghp_[A-Za-z0-9]{20,}\b/g, "[REDACTED-GH-TOKEN]");
     s = s.replace(/\bgho_[A-Za-z0-9]{20,}\b/g, "[REDACTED-GH-TOKEN]");
     s = s.replace(/\bxox[pbar]-[A-Za-z0-9-]{20,}\b/g, "[REDACTED-SLACK]");
     // Email addresses
     s = s.replace(
-        /\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/g,
+        /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
         "[email]",
     );
     // POSIX home paths — keep the /home/ prefix, strip username
@@ -89,7 +89,7 @@ export function redactSecrets(input: string): string {
     // require 16+ on the header and 16+ on the payload to avoid
     // false-positives on version-like strings ("1.2.3-beta").
     s = s.replace(
-        /\beyJ[A-Za-z0-9_\-]{14,}\.[A-Za-z0-9_\-]{16,}\.[A-Za-z0-9_\-]{10,}\b/g,
+        /\beyJ[A-Za-z0-9_-]{14,}\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{10,}\b/g,
         "[REDACTED-JWT]",
     );
     // Long base64-ish blobs (potential key material) — require mixed case or digits
