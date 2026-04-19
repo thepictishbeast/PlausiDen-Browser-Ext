@@ -6,6 +6,7 @@
   "scripts": {
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
+    "test": "bash ./scripts/test.sh",
     "build": "npm run build:chrome && npm run build:firefox",
     "build:chrome": "bash ./scripts/build-chrome.sh",
     "build:firefox": "bash ./scripts/build-firefox.sh",

@@ -1,0 +1,21 @@
+{
+  "_comment": "Example: a journalist with irregular hours and custom category selection. Illustrative — not consumed at runtime.",
+
+  "enabled": true,
+  "activeProfile": "journalist",
+  "intensity": "high",
+
+  "customActiveHours": { "start": 5, "end": 24 },
+  "customDailyEntries": 160,
+  "customCategories": ["news", "government", "legal", "reference", "technology", "finance"],
+
+  "generateCookies": true,
+
+  "_note_counters": "The counters below are pipeline-only — DEFAULT_CONFIG initializes them to 0. Shown here with illustrative values to demonstrate what steady-state data looks like.",
+  "lastRunTimestamp": 1745000000000,
+  "lastRunDurationMs": 143,
+  "lastRunAttempted": 6,
+  "lastRunSucceeded": 6,
+  "totalEntriesGenerated": 23418,
+  "totalSessionsGenerated": 4219
+}

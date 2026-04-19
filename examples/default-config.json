@@ -1,0 +1,20 @@
+{
+  "_comment": "Default ExtensionConfig as of 2026-04-17. Mirrors DEFAULT_CONFIG in src/shared/types.ts. Illustrative — not consumed at runtime. See examples/README.md.",
+
+  "enabled": false,
+  "activeProfile": "casual",
+  "intensity": "medium",
+
+  "customActiveHours": null,
+  "customDailyEntries": null,
+  "customCategories": null,
+
+  "generateCookies": true,
+
+  "lastRunTimestamp": 0,
+  "lastRunDurationMs": 0,
+  "lastRunAttempted": 0,
+  "lastRunSucceeded": 0,
+  "totalEntriesGenerated": 0,
+  "totalSessionsGenerated": 0
+}

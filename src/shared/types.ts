@@ -117,6 +117,12 @@ export interface ExtensionConfig {
   generateCookies: boolean;
   /** Timestamp of last generation run */
   lastRunTimestamp: number;
+  /** Wall-clock duration of the last generation run, in ms. Zero if never run. */
+  lastRunDurationMs: number;
+  /** Number of history entries the last run attempted to inject. */
+  lastRunAttempted: number;
+  /** Number of history entries the last run actually succeeded in injecting. */
+  lastRunSucceeded: number;
   /** Total entries generated since install */
   totalEntriesGenerated: number;
   /** Total sessions generated since install */
@@ -137,6 +143,10 @@ export interface ActivityStats {
   activeProfileName: string;
   /** Next scheduled generation time */
   nextRunTime: number | null;
+  /** Wall-clock ms the last generation run took. 0 if never run. */
+  lastRunDurationMs: number;
+  /** (attempted, succeeded) entry counts from the last run. */
+  lastRunRatio: { attempted: number; succeeded: number };
 }
 
 /** Intensity multipliers for generation rates */
@@ -146,6 +156,39 @@ export const INTENSITY_MULTIPLIERS: Record<IntensityLevel, number> = {
   high: 2.0,
   max: 4.0,
 };
+
+/** A message sent between the popup / options page and the background
+ *  service-worker. The service-worker dispatches on `type`; `payload`
+ *  carries type-specific data. */
+export interface ExtMessage {
+  /** One of GET_STATS | GET_CONFIG | TOGGLE_ENABLED | UPDATE_CONFIG | GENERATE_NOW */
+  type: string;
+  payload?: Record<string, unknown>;
+}
+
+/** Response the service-worker sends when a handler throws. The popup
+ *  (and any other consumer) treats any response with `error: true` as
+ *  a failure, surfaces `userMessage` to the user, and ignores `cause`
+ *  unless writing diagnostics to devtools. */
+export interface ExtErrorResponse {
+  error: true;
+  /** The message type that failed (e.g. "GET_STATS"). */
+  messageType: string;
+  /** User-facing copy: what happened and what to try. */
+  userMessage: string;
+  /** Short technical description, bounded to 200 chars. For devtools only. */
+  cause: string;
+}
+
+/** Type guard — detects error responses from message handlers. */
+export function isExtErrorResponse(r: unknown): r is ExtErrorResponse {
+  return (
+    typeof r === "object" &&
+    r !== null &&
+    (r as { error?: unknown }).error === true &&
+    typeof (r as { userMessage?: unknown }).userMessage === "string"
+  );
+}
 
 /** Default extension configuration */
 export const DEFAULT_CONFIG: ExtensionConfig = {
@@ -157,6 +200,9 @@ export const DEFAULT_CONFIG: ExtensionConfig = {
   customCategories: null,
   generateCookies: true,
   lastRunTimestamp: 0,
+  lastRunDurationMs: 0,
+  lastRunAttempted: 0,
+  lastRunSucceeded: 0,
   totalEntriesGenerated: 0,
   totalSessionsGenerated: 0,
 };

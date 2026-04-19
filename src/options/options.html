@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PlausiDen Settings</title>
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="traffic-light.css">
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
@@ -12,6 +14,15 @@
       <h1>PlausiDen Settings</h1>
       <p class="subtitle">Configure your browsing noise generation profile</p>
     </header>
+
+    <aside id="incognito-banner" class="banner banner--warn" role="alert" hidden>
+      <strong>Incognito access is enabled.</strong>
+      Generation and the self-check probe will also run in incognito windows,
+      writing synthetic entries into incognito history. If you need incognito
+      to leave no local trace, disable incognito access at
+      <code>chrome://extensions</code> &rarr; PlausiDen &rarr; Details &rarr;
+      &ldquo;Allow in incognito&rdquo;.
+    </aside>
 
     <section class="section">
       <h2>Profile</h2>
@@ -84,6 +95,29 @@
       <span class="save-status" id="save-status"></span>
       <button class="btn btn-primary" id="save-btn">Save Settings</button>
     </div>
+
+    <section class="section">
+      <details id="self-check-details">
+        <summary>
+          <span class="pd-tl" id="self-check-light" role="status" aria-label="Self-check state unknown">
+            <span class="pd-tl__dot"></span>
+          </span>
+          Self-check &mdash; is the extension actually writing history?
+        </summary>
+        <p class="hint">
+          PlausiDen periodically runs a throwaway probe under
+          <code>self-check.plausiden.invalid</code> to detect browser
+          policies or antivirus tools that silently block history writes.
+          The state here reflects the most recent probe.
+        </p>
+        <div id="self-check-card" aria-live="polite">
+          <div class="stat-hint" id="self-check-status">Loading&hellip;</div>
+          <div class="stat-hint" id="self-check-last-run"></div>
+          <div class="stat-hint" id="self-check-note"></div>
+          <button class="btn" id="self-check-btn" type="button">Check now</button>
+        </div>
+      </details>
+    </section>
 
     <footer class="footer">
       <p>PlausiDen v0.1.0 &middot; Tier 0 &middot; All generation is local, no network traffic</p>

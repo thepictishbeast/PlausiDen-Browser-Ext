@@ -7,6 +7,7 @@
 
 import { ExtensionConfig, DEFAULT_CONFIG, ActivityStats } from "./types";
 import { getProfile } from "./profiles";
+import { sanitizeStoredConfig } from "./config-validation";
 
 const STORAGE_KEY_CONFIG = "plausiden_config";
 const STORAGE_KEY_DAILY_STATS = "plausiden_daily_stats";
@@ -17,17 +18,25 @@ interface DailyStats {
   sessionsGenerated: number;
 }
 
-/** Load the extension configuration from storage */
+/** Load the extension configuration from storage.
+ *
+ *  Why sanitizeStoredConfig: chrome.storage.local can be corrupted by
+ *  manual edits, extension-update schema drift, or (in theory) a
+ *  compromised environment. Casting `as Partial<ExtensionConfig>` just
+ *  tells the TypeScript compiler to trust us; it does nothing at runtime.
+ *  The sanitizer validates every field and falls back to defaults on any
+ *  malformed or out-of-range value, so downstream code gets a type-safe
+ *  config even when storage has been tampered with.
+ */
 export async function loadConfig(): Promise<ExtensionConfig> {
   return new Promise((resolve) => {
     chrome.storage.local.get(STORAGE_KEY_CONFIG, (result: Record<string, unknown>) => {
-      const stored = result[STORAGE_KEY_CONFIG] as Partial<ExtensionConfig> | undefined;
-      if (stored) {
-        // Merge with defaults to handle schema migrations
-        resolve({ ...DEFAULT_CONFIG, ...stored });
-      } else {
+      const stored = result[STORAGE_KEY_CONFIG];
+      if (stored === undefined || stored === null) {
         resolve({ ...DEFAULT_CONFIG });
+        return;
       }
+      resolve(sanitizeStoredConfig(stored));
     });
   });
 }
@@ -39,16 +48,6 @@ export async function saveConfig(config: ExtensionConfig): Promise<void> {
       resolve();
     });
   });
-}
-
-/** Update specific fields in the configuration */
-export async function updateConfig(
-  updates: Partial<ExtensionConfig>
-): Promise<ExtensionConfig> {
-  const current = await loadConfig();
-  const updated = { ...current, ...updates };
-  await saveConfig(updated);
-  return updated;
 }
 
 /** Get today's date string in YYYY-MM-DD format */
@@ -81,10 +80,24 @@ async function saveDailyStats(stats: DailyStats): Promise<void> {
   });
 }
 
+/** Metrics captured from a single generation run, passed to recordGeneration
+ *  so the run-level observability data lands in storage in one transaction. */
+export interface RunMetrics {
+  /** Wall-clock duration of the run, in ms. */
+  durationMs: number;
+  /** Entries the run attempted to inject. */
+  attempted: number;
+  /** Entries that actually landed (chrome.history.addUrl succeeded). */
+  succeeded: number;
+  /** Sessions generated. */
+  sessions: number;
+}
+
 /** Record that entries were generated */
 export async function recordGeneration(
   entryCount: number,
-  sessionCount: number
+  sessionCount: number,
+  metrics?: RunMetrics,
 ): Promise<void> {
   // Update daily stats
   const daily = await loadDailyStats();
@@ -92,11 +105,16 @@ export async function recordGeneration(
   daily.sessionsGenerated += sessionCount;
   await saveDailyStats(daily);
 
-  // Update lifetime stats in config
+  // Update lifetime stats + last-run observability in config
   const config = await loadConfig();
   config.totalEntriesGenerated += entryCount;
   config.totalSessionsGenerated += sessionCount;
   config.lastRunTimestamp = Date.now();
+  if (metrics) {
+    config.lastRunDurationMs = metrics.durationMs;
+    config.lastRunAttempted = metrics.attempted;
+    config.lastRunSucceeded = metrics.succeeded;
+  }
   await saveConfig(config);
 }
 
@@ -124,5 +142,10 @@ export async function getActivityStats(): Promise<ActivityStats> {
     totalEntries: config.totalEntriesGenerated,
     activeProfileName: profile.name,
     nextRunTime,
+    lastRunDurationMs: config.lastRunDurationMs,
+    lastRunRatio: {
+      attempted: config.lastRunAttempted,
+      succeeded: config.lastRunSucceeded,
+    },
   };
 }

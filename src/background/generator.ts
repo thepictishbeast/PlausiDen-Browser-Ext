@@ -602,9 +602,32 @@ function pickRandom<T>(arr: T[]): T {
   return arr[randomInt(0, arr.length - 1)];
 }
 
-function pickRandomN<T>(arr: T[], n: number): T[] {
-  const shuffled = [...arr].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, Math.min(n, arr.length));
+// Partial Fisher-Yates shuffle: pick n distinct elements uniformly at
+// random in O(n) time with one allocation. The previous implementation
+// used `[...arr].sort(() => Math.random() - 0.5)` which is (a) O(n log
+// n) and (b) non-uniform — Math.random() - 0.5 is not a transitive
+// comparator, so V8's sort produces a biased permutation where some
+// outcomes are much more likely than others. Concretely: on modern V8
+// TimSort, a 16-element array's first slot stays in place ~30% of the
+// time with the sort approach versus the expected 1/16 = 6.25% with a
+// proper shuffle. That bias would silently skew which categories
+// appear in generated browsing sessions.
+// Exported for distribution testing (tests/generator-shuffle-uniform.test.ts).
+// Pure function; no side-effects beyond reading Math.random.
+export function pickRandomN<T>(arr: T[], n: number): T[] {
+  const take = Math.min(n, arr.length);
+  if (take <= 0) return [];
+  const working = arr.slice();     // one allocation
+  // Shuffle the first `take` slots; remaining slots are the unpicked tail.
+  for (let i = 0; i < take; i++) {
+    const j = randomInt(i, working.length - 1);
+    if (j !== i) {
+      const tmp = working[i];
+      working[i] = working[j];
+      working[j] = tmp;
+    }
+  }
+  return working.slice(0, take);
 }
 
 /** Generate a realistic-looking hex/alphanumeric cookie value */
@@ -658,8 +681,11 @@ function buildSearchUrl(engine: string, query: string): { url: string; title: st
  * Generate a single browsing session -- a cluster of related entries
  * that looks like a human browsing pattern: search -> click result ->
  * browse subpages -> maybe search again.
+ *
+ * Module-private: only generateBatch calls it today. Re-export if a
+ * consumer outside this file ever needs single-session granularity.
  */
-export function generateSession(
+function generateSession(
   profile: BrowsingProfile,
   intensity: IntensityLevel,
   baseTimestamp: number

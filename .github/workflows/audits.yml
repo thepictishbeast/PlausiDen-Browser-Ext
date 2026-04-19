@@ -1,0 +1,79 @@
+name: audits
+
+# Audit-on-PR per v1.2 §A audit framework. Catches regressions that
+# are invisible to typecheck / lint — synthetic-TLD leaks, manifest
+# permission-scope creep, and wasm-engine test-suite drift.
+#
+# Authored: Claude 3, 2026-04-17 (task #34 close-out).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  manifest-permission-allowlist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Check manifest permission allowlist
+        run: ./../../scripts/dev/check-manifest-permissions.sh .
+        # The script can be called against the repo root or a sibling
+        # checkout. In CI we run from the extension root directly.
+        env:
+          PLAUSIDEN_BROWSER_EXT: "."
+
+  wasm-engine-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            wasm-engine/target
+          key: ${{ runner.os }}-cargo-wasm-engine-${{ hashFiles('wasm-engine/Cargo.lock', 'wasm-engine/Cargo.toml') }}
+      - name: cargo test (wasm-engine)
+        working-directory: wasm-engine
+        run: cargo test --all-targets --quiet
+      - name: cargo check wasm32 target
+        working-directory: wasm-engine
+        run: |
+          rustup target add wasm32-unknown-unknown
+          cargo check --target wasm32-unknown-unknown
+
+  leak-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+      - name: Run leak audit
+        run: |
+          # Shipped audit runner from sibling infra. In CI we vendor a
+          # minimal copy to avoid needing a sibling checkout; the script
+          # is under ~200 lines. If the shipped runner lives at the
+          # repo root via submodule or copied folder, this step
+          # invokes it. For now, inline the core check:
+          echo "== Browser-Ext synthetic-TLD leak check =="
+          if rg -l --glob '!target' --glob '!node_modules' --glob '!tests/' --glob '!*.md' --glob '!*.lock' \
+            '\.(example|invalid|localhost|test)(/|"|'\''|$)|example\.(com|org|net)' \
+            . > /tmp/leak-findings.txt 2>/dev/null; then
+            # Filter out lines that are doc comments (///, //!, //, #)
+            # and lines containing assert (test assertions allowlisting
+            # the patterns).
+            real_hits=$(xargs rg -n '\.(example|invalid|localhost|test)(/|"|'\''|$)' < /tmp/leak-findings.txt 2>/dev/null | \
+              grep -v '^\s*///\|^\s*//!\|^\s*//\|assert\|#[[:space:]]' | \
+              wc -l || true)
+            if [ "$real_hits" -gt 0 ]; then
+              echo "::error::Synthetic-TLD leak in real code — $real_hits hit(s)"
+              xargs rg -n '\.(example|invalid|localhost|test)(/|"|'\''|$)' < /tmp/leak-findings.txt | head -20 || true
+              exit 1
+            fi
+          fi
+          echo "leak audit: clean"

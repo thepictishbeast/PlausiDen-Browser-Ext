@@ -1,0 +1,172 @@
+/* PlausiDen — Design Tokens
+ * ------------------------------------------------------------------
+ * Shared foundation tokens consumed by Browser-Ext popup, Browser-Ext
+ * options page, Desktop dashboard, and the future Android Compose
+ * theme (via parallel Rust/Kotlin mirrors).
+ *
+ * Clinical / neutral visual language per v1.2 framing — no
+ * security-tool aesthetic, no agitprop, no colors that scream
+ * "dangerous." Looks like a professional product.
+ *
+ * All spacing is a multiple of 4 px. The 8 px step is preferred
+ * except where 4 px is needed for tight UI (icon padding, inline
+ * chips). All type sizes snap to the scale — no arbitrary values.
+ *
+ * Authored: Claude 3, 2026-04-17.
+ */
+
+:root {
+    /* -------- COLOR — Light (default) ---------- */
+
+    /* Surface / background */
+    --pd-color-bg:              #f7f8fa;  /* canvas */
+    --pd-color-bg-elevated:     #ffffff;  /* cards, popover */
+    --pd-color-bg-sunken:       #eef0f3;  /* wells, inactive */
+    --pd-color-bg-overlay:      rgba(18, 22, 31, 0.48);
+
+    /* Text */
+    --pd-color-fg:              #12161f;  /* primary ink */
+    --pd-color-fg-muted:        #4a5060;  /* secondary */
+    --pd-color-fg-subtle:       #757b8a;  /* tertiary */
+    --pd-color-fg-inverse:      #ffffff;  /* on dark accents */
+
+    /* Border / divider */
+    --pd-color-border:          #dde0e6;
+    --pd-color-border-strong:   #c1c6d0;
+    --pd-color-border-focus:    #2b5cff;
+
+    /* Status — traffic light */
+    --pd-color-status-ok:       #16a34a;  /* green: protection active */
+    --pd-color-status-warn:     #d97706;  /* amber: degraded / paused */
+    --pd-color-status-err:      #dc2626;  /* red: interference / failure */
+    --pd-color-status-info:     #2563eb;  /* blue: informational */
+
+    /* `-on` variants: the foreground text / icon color that sits ON
+     * TOP of the matching status background. Picked for WCAG 2.1
+     * AA contrast (≥ 4.5:1) against each status color. Amber is the
+     * one that needs dark-on-light; the others take white. */
+    --pd-color-status-ok-on:    #ffffff;
+    --pd-color-status-warn-on:  #0a0a0a;
+    --pd-color-status-err-on:   #ffffff;
+    --pd-color-status-info-on:  #ffffff;
+
+    /* Accent (primary interactive) */
+    --pd-color-accent:          #2b5cff;  /* clinical blue, not agitprop */
+    --pd-color-accent-hover:    #1f49d1;
+    --pd-color-accent-active:   #1a3ea8;
+    --pd-color-accent-on:       #ffffff;
+
+    /* -------- SPACING — 4 px base, 8 px preferred ---------- */
+    --pd-space-0:   0;
+    --pd-space-1:   4px;   /* tight: icon padding, chip internal */
+    --pd-space-2:   8px;   /* preferred base step */
+    --pd-space-3:   12px;
+    --pd-space-4:   16px;
+    --pd-space-5:   20px;
+    --pd-space-6:   24px;
+    --pd-space-8:   32px;
+    --pd-space-10:  40px;
+    --pd-space-12:  48px;
+    --pd-space-16:  64px;
+
+    /* -------- TYPOGRAPHY ---------- */
+
+    /* Families — system stack; no webfont load to keep offline-first */
+    --pd-font-sans:  ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+                     "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    --pd-font-mono:  ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono",
+                     "Courier New", monospace;
+
+    /* Scale — minor third (1.200). No value outside this table. */
+    --pd-text-xs:   11px;   /* fine print, chip label */
+    --pd-text-sm:   13px;   /* body small / secondary */
+    --pd-text-md:   15px;   /* body default */
+    --pd-text-lg:   18px;   /* subhead */
+    --pd-text-xl:   22px;   /* h3 */
+    --pd-text-2xl:  28px;   /* h2 */
+    --pd-text-3xl:  34px;   /* h1 (rare in extension UI) */
+
+    /* Line-heights — tight for headings, looser for body */
+    --pd-lh-tight:   1.2;
+    --pd-lh-normal:  1.45;
+    --pd-lh-loose:   1.6;
+
+    /* Weights */
+    --pd-weight-regular:  400;
+    --pd-weight-medium:   500;
+    --pd-weight-semibold: 600;
+
+    /* -------- RADIUS ---------- */
+    --pd-radius-sm:    4px;
+    --pd-radius-md:    8px;   /* default */
+    --pd-radius-lg:    12px;
+    --pd-radius-full:  9999px;
+
+    /* -------- ELEVATION (shadow) ---------- */
+    --pd-shadow-0: none;
+    --pd-shadow-1: 0 1px 2px rgba(18, 22, 31, 0.06);
+    --pd-shadow-2: 0 2px 4px rgba(18, 22, 31, 0.08), 0 1px 2px rgba(18, 22, 31, 0.06);
+    --pd-shadow-3: 0 8px 16px rgba(18, 22, 31, 0.10), 0 2px 4px rgba(18, 22, 31, 0.06);
+
+    /* -------- MOTION — short, linear; respect reduced-motion ---------- */
+    --pd-duration-fast:   120ms;
+    --pd-duration-normal: 200ms;
+    --pd-duration-slow:   320ms;
+    --pd-easing:          cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Dark mode — inverted surface/text, same accent and status hues */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --pd-color-bg:            #0d1017;
+        --pd-color-bg-elevated:   #151a23;
+        --pd-color-bg-sunken:     #0a0d12;
+        --pd-color-bg-overlay:    rgba(0, 0, 0, 0.64);
+
+        --pd-color-fg:            #e8eaee;
+        --pd-color-fg-muted:      #a7acb6;
+        --pd-color-fg-subtle:     #7c818d;
+        --pd-color-fg-inverse:    #12161f;
+
+        --pd-color-border:        #2a2f3a;
+        --pd-color-border-strong: #3a4150;
+        --pd-color-border-focus:  #6b87ff;
+
+        /* Status hues shift slightly warmer on dark for contrast */
+        --pd-color-status-ok:     #22c55e;
+        --pd-color-status-warn:   #f59e0b;
+        --pd-color-status-err:    #ef4444;
+        --pd-color-status-info:   #60a5fa;
+
+        /* Lighter status backgrounds → black `-on` reads best. */
+        --pd-color-status-ok-on:   #0a0a0a;
+        --pd-color-status-warn-on: #0a0a0a;
+        --pd-color-status-err-on:  #0a0a0a;
+        --pd-color-status-info-on: #0a0a0a;
+
+        --pd-color-accent:        #6b87ff;
+        --pd-color-accent-hover:  #8ba1ff;
+        --pd-color-accent-active: #a7b7ff;
+        --pd-color-accent-on:     #0d1017;
+
+        --pd-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.40);
+        --pd-shadow-2: 0 2px 4px rgba(0, 0, 0, 0.40), 0 1px 2px rgba(0, 0, 0, 0.30);
+        --pd-shadow-3: 0 8px 16px rgba(0, 0, 0, 0.48), 0 2px 4px rgba(0, 0, 0, 0.32);
+    }
+}
+
+/* Reduced motion — honor user preference */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --pd-duration-fast:   0ms;
+        --pd-duration-normal: 0ms;
+        --pd-duration-slow:   0ms;
+    }
+}
+
+/* ---- Small utility: focus ring — WCAG 2.1 AA compliant ---- */
+.pd-focusable:focus-visible {
+    outline: 2px solid var(--pd-color-border-focus);
+    outline-offset: 2px;
+    border-radius: inherit;
+}

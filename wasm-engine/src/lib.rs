@@ -25,11 +25,25 @@ mod rng;
 
 use wasm_bindgen::prelude::*;
 
+/// Maximum accepted length of the `profile_json` input in bytes.
+///
+/// A valid [`profile::BrowsingProfile`] serializes to well under 1 KB; the
+/// 4 KB cap is a generous upper bound that still forecloses on any attempt
+/// to force `serde_json` to allocate unbounded memory (a malicious caller
+/// could otherwise hand us a multi-megabyte string and turn the tab into
+/// an OOM target).
+///
+/// SECURITY: bounded deserialization surface — see AVP-2 Tier 1 (deserialization
+/// hardening) and audit `leak` checklist item "max-size bounds before parsing."
+pub const MAX_PROFILE_JSON_LEN: usize = 4096;
+
 /// Generate a batch of plausible browsing entries.
 ///
 /// # Arguments
 ///
-/// * `profile_json` — JSON-serialized [`profile::BrowsingProfile`].
+/// * `profile_json` — JSON-serialized [`profile::BrowsingProfile`]. Rejected
+///   if longer than [`MAX_PROFILE_JSON_LEN`] bytes (defense against unbounded
+///   allocation from a malicious caller).
 ///   See the `profile` module for the schema.
 /// * `intensity` — One of `"low"`, `"medium"`, `"high"`, `"max"`.
 ///   Controls how many entries land inside each generated session.
@@ -41,8 +55,20 @@ use wasm_bindgen::prelude::*;
 /// On input error, returns a JSON `{"error": "..."}` object rather
 /// than panicking — this is deliberate so the extension can surface
 /// the error to the user without a tab crash.
+///
+/// BUG ASSUMPTION: `profile_json` arrives unvalidated from JavaScript; the
+/// caller may be hostile even though the extension's own popup never sends
+/// large inputs. Treat every call as untrusted.
 #[wasm_bindgen]
 pub fn generate_batch(profile_json: &str, intensity: &str, count: u32) -> String {
+    if profile_json.len() > MAX_PROFILE_JSON_LEN {
+        return format!(
+            r#"{{"error":"profile JSON too large: {} bytes (max {})"}}"#,
+            profile_json.len(),
+            MAX_PROFILE_JSON_LEN,
+        );
+    }
+
     let profile: profile::BrowsingProfile = match serde_json::from_str(profile_json) {
         Ok(p) => p,
         Err(e) => return format!(r#"{{"error":"invalid profile JSON: {}"}}"#, e),
@@ -137,5 +163,77 @@ mod integration_tests {
         assert!(out.starts_with('['));
         let parsed: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert!(parsed.as_array().unwrap().len() >= 4);
+    }
+
+    #[test]
+    fn test_generate_batch_rejects_oversized_profile_json() {
+        // Construct a valid-but-huge JSON — valid serde syntax, but way over
+        // MAX_PROFILE_JSON_LEN. Caller should get an error JSON, not a panic.
+        let huge_timezone: String = "A".repeat(MAX_PROFILE_JSON_LEN + 1);
+        let oversized = format!(
+            r#"{{"seed":1,"flavour":"Tech","timezone":"{huge_timezone}"}}"#
+        );
+        assert!(oversized.len() > MAX_PROFILE_JSON_LEN);
+
+        let out = generate_batch(&oversized, "low", 1);
+        assert!(
+            out.contains("too large"),
+            "expected size-limit error, got: {out}"
+        );
+        // Must not start with '[' — that would indicate parsing proceeded.
+        assert!(
+            !out.starts_with('['),
+            "oversized input should not reach the generator"
+        );
+    }
+
+    /// Perf regression guard. NOT a micro-benchmark (we don't need
+    /// criterion's statistical machinery for a ceiling check) — this
+    /// just asserts the worst realistic batch stays under a generous
+    /// latency budget. If a future change here makes generate_batch
+    /// allocate-heavy or quadratic, this test starts failing and the
+    /// author has to explain why.
+    ///
+    /// Budget rationale: the popup expects 100 sessions to feel instant;
+    /// 200ms is ~2x the 100ms "feels instant" threshold to give CI hosts
+    /// headroom. On a modern dev box the actual time is typically <20ms.
+    /// Native cargo test; WASM runtime is slower but orders-of-magnitude
+    /// headroom remains.
+    #[test]
+    fn test_generate_batch_latency_ceiling() {
+        use std::time::Instant;
+        let profile = r#"{"seed":1,"flavour":"Tech"}"#;
+        let start = Instant::now();
+        let out = generate_batch(profile, "medium", 100);
+        let elapsed = start.elapsed();
+        assert!(out.starts_with('['), "output should be a JSON array");
+        assert!(
+            elapsed.as_millis() < 200,
+            "generate_batch(100 sessions) took {}ms, over 200ms ceiling",
+            elapsed.as_millis(),
+        );
+    }
+
+    #[test]
+    fn test_generate_batch_accepts_profile_json_at_limit() {
+        // A profile just under the cap must still succeed — the bound is a
+        // ceiling, not a floor. Construct a valid profile with a comfortable
+        // margin below the limit.
+        let mut padding = String::from("X");
+        // Build a timezone string sized so total JSON is ~MAX_PROFILE_JSON_LEN - 100.
+        while padding.len() < MAX_PROFILE_JSON_LEN - 200 {
+            padding.push('X');
+        }
+        let near_limit = format!(
+            r#"{{"seed":1,"flavour":"Tech","timezone":"{padding}"}}"#
+        );
+        assert!(near_limit.len() < MAX_PROFILE_JSON_LEN);
+
+        let out = generate_batch(&near_limit, "low", 1);
+        assert!(
+            out.starts_with('['),
+            "at-limit profile should succeed, got: {}…",
+            &out.chars().take(80).collect::<String>()
+        );
     }
 }

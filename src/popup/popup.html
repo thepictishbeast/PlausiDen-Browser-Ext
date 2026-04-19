@@ -4,55 +4,82 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PlausiDen</title>
+  <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="container">
+  <main class="container">
     <header class="header">
       <h1 class="title">PlausiDen</h1>
       <span class="version">v0.1.0</span>
     </header>
 
-    <div class="status-bar" id="status-bar">
-      <span class="status-dot" id="status-dot"></span>
-      <span class="status-text" id="status-text">Loading...</span>
+    <div class="status-bar" id="status-bar" role="status" aria-live="polite" aria-atomic="true">
+      <span class="traffic-light" id="traffic-light" aria-hidden="true">
+        <span class="traffic-light__dot"></span>
+      </span>
+      <span class="status-text" id="status-text">Loading…</span>
     </div>
 
-    <div class="stats">
-      <div class="stat-row">
-        <span class="stat-label">Profile</span>
-        <span class="stat-value" id="profile-name">--</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Today</span>
-        <span class="stat-value" id="entries-today">--</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Sessions</span>
-        <span class="stat-value" id="sessions-today">--</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">All time</span>
-        <span class="stat-value" id="total-entries">--</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Next run</span>
-        <span class="stat-value" id="next-run">--</span>
-      </div>
+    <div class="welcome" id="welcome" hidden role="note">
+      <p class="welcome__headline">Ready to start polluting your browsing history.</p>
+      <p class="welcome__body">PlausiDen generates realistic synthetic browsing entries so the data found in your history can&rsquo;t be read as a record of what you actually did. Click <strong>Enable</strong> below to begin &mdash; the first batch lands in a minute or two.</p>
     </div>
+
+    <dl class="stats" aria-label="Activity summary">
+      <div class="stat-row">
+        <dt class="stat-label">Profile</dt>
+        <dd class="stat-value" id="profile-name"><span class="skeleton">loading</span></dd>
+      </div>
+      <div class="stat-row">
+        <dt class="stat-label">Today</dt>
+        <dd class="stat-value" id="entries-today"><span class="skeleton">loading</span></dd>
+      </div>
+      <div class="stat-row">
+        <dt class="stat-label">Sessions</dt>
+        <dd class="stat-value" id="sessions-today">—</dd>
+      </div>
+      <div class="stat-row">
+        <dt class="stat-label">All time</dt>
+        <dd class="stat-value" id="total-entries">—</dd>
+      </div>
+      <div class="stat-row">
+        <dt class="stat-label">Next run</dt>
+        <dd class="stat-value" id="next-run">—</dd>
+      </div>
+      <div class="stat-row">
+        <dt class="stat-label">Last run</dt>
+        <dd class="stat-value" id="last-run-info">—</dd>
+      </div>
+    </dl>
 
     <div class="actions">
-      <button class="btn btn-primary" id="toggle-btn">Enable</button>
-      <button class="btn btn-secondary" id="generate-btn">Generate Now</button>
+      <button class="btn btn--primary pd-focusable" id="toggle-btn"
+              aria-pressed="false"
+              aria-describedby="toggle-hint">Enable</button>
+      <button class="btn btn--secondary pd-focusable" id="generate-btn"
+              aria-label="Generate a batch of synthetic browsing entries now"
+              aria-describedby="generate-hint">Generate now</button>
+    </div>
+    <!-- Visually hidden descriptions for screen readers. Kept off-screen
+         with the .sr-only utility rather than display:none so assistive
+         tech still exposes them. -->
+    <div id="toggle-hint" class="sr-only">
+      Enables automatic generation on a scheduled cadence. Generation
+      can be paused again at any time.
+    </div>
+    <div id="generate-hint" class="sr-only">
+      Manually triggers one batch immediately. Use if you want to see
+      activity without waiting for the next scheduled run.
     </div>
 
-    <div class="feedback" id="feedback" hidden></div>
+    <div class="feedback" id="feedback" role="status" aria-live="polite" hidden></div>
 
     <footer class="footer">
-      <a href="#" id="options-link">Settings</a>
-      <span class="tier-badge">Tier 0</span>
+      <a href="#" id="options-link" class="pd-focusable">Settings</a>
+      <span class="tier-badge" aria-label="Protection tier 0">Tier 0</span>
     </footer>
-  </div>
+  </main>
 
   <script src="popup.js"></script>
 </body>

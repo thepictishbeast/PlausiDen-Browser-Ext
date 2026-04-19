@@ -55,15 +55,39 @@ function circadianWeight(hour: number, activeHours: ActiveHours): number {
     normalizedPos = (hour - start) / duration;
   }
 
-  // Shape the curve: rise, peak, slight lunch dip, second peak, decline
-  // Using a combination of sine curves
+  // Shape the curve: rise, peak, slight lunch dip, second peak, decline.
+  //
+  // Why: the forensic distinguisher cares about hour-of-day distributions
+  // of browsing activity. Uniform-random generation across the active
+  // window is itself a fingerprint — humans don't browse at constant
+  // rate. The three terms model the coarse shape of an organic day:
+  //
+  //   morningRise   — half-sine from 0 at wake to 1 at mid-day peak and
+  //                   back to 0 at sleep. Baseline activity envelope.
+  //   lunchDip      — 0.2-amplitude Gaussian bump *subtracted* around
+  //                   normalizedPos = 0.45 (roughly 12:30 for a 08:00-23:00
+  //                   active window, which is hour 5:15 out of 15). The
+  //                   0.2 depth → 20% dip at trough. The `* 6` inside the
+  //                   Math.pow controls Gaussian width: larger = sharper.
+  //                   6 gives a dip roughly 1 hour wide half-max.
+  //   eveningDecline — linear drop starting at 0.8 of active window (~21:00
+  //                   for 08:00-23:00), slope 2.5. At normalizedPos = 1.0
+  //                   the decline multiplier is 1 - 0.2 * 2.5 = 0.5, but
+  //                   the Math.max(0.1, ...) floor keeps us nonzero.
+  //
+  // None of this is tuned to any specific population study — it's
+  // heuristic shape that looks plausible to a forensic reviewer. If a
+  // future adversary-distinguisher pass finds the curve too regular,
+  // tighten the jitter or swap for a learned distribution. Keep the
+  // constants together so the shape is readable as a unit.
   const morningRise = Math.sin(normalizedPos * Math.PI);
   const lunchDip = 1.0 - 0.2 * Math.exp(-Math.pow((normalizedPos - 0.45) * 6, 2));
   const eveningDecline = normalizedPos < 0.8 ? 1.0 : 1.0 - (normalizedPos - 0.8) * 2.5;
 
   const weight = morningRise * lunchDip * Math.max(0.1, eveningDecline);
 
-  // Clamp to [0.05, 1.0] -- never truly zero during waking hours
+  // Clamp to [0.05, 1.0] -- never truly zero during waking hours (small
+  // chance of an "insomnia / early check" event even at low weights).
   return Math.max(0.05, Math.min(1.0, weight));
 }
 

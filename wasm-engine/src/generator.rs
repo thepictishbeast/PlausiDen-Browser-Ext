@@ -54,7 +54,23 @@ impl FlavourVocab {
     }
 }
 
-// Vocabulary pools. All data is synthetic — no real names.
+// Vocabulary pools. Hosts are real public domains that the generator's
+// target threat model (browser-history forensic inspection) expects to
+// see in an organic user's history. Synthetic `.example` / `.invalid`
+// / `.test` TLDs would be instant fingerprints — a user's real history
+// never contains those, so their presence signals pollution. The
+// `audit leak` check in `scripts/audit/run.sh` enforces this invariant;
+// `test_urls_never_contain_synthetic_tlds` below is the in-code
+// regression guard.
+//
+// SECURITY: changing a host here must leave the set consisting only of
+// real, resolvable, publicly-known sites. Do NOT add `.example`,
+// `.test`, `.invalid`, or `.localhost` — those never appear in organic
+// history. Fake-real-looking names (`dev-notes.com`) are also bad:
+// either they resolve to someone else's site (ethical issue, slight
+// legal exposure) or they don't (user's DNS cache reveals a fake
+// lookup attempt).
+
 static TECH: FlavourVocab = FlavourVocab {
     topics: &[
         "Rust memory safety",
@@ -66,11 +82,12 @@ static TECH: FlavourVocab = FlavourVocab {
         "Zero-knowledge proofs",
     ],
     hosts: &[
-        "tech-review.example",
-        "dev-notes.example",
-        "open-source.example",
-        "systems-blog.example",
-        "compiler-weekly.example",
+        "arstechnica.com",
+        "theverge.com",
+        "github.com",
+        "developer.mozilla.org",
+        "stackoverflow.com",
+        "news.ycombinator.com",
     ],
     path_segments: &[
         "articles", "docs", "posts", "2026", "guide", "reference", "tutorial",
@@ -86,10 +103,11 @@ static NEWS: FlavourVocab = FlavourVocab {
         "sports league standings",
     ],
     hosts: &[
-        "daily-herald.example",
-        "evening-post.example",
-        "city-tribune.example",
-        "global-dispatch.example",
+        "reuters.com",
+        "apnews.com",
+        "bbc.com",
+        "npr.org",
+        "theguardian.com",
     ],
     path_segments: &["news", "world", "local", "opinion", "politics", "latest"],
 };
@@ -104,10 +122,11 @@ static SHOPPING: FlavourVocab = FlavourVocab {
         "wool sweater",
     ],
     hosts: &[
-        "marketplace.example",
-        "depot-online.example",
-        "storefront.example",
-        "catalog.example",
+        "amazon.com",
+        "ebay.com",
+        "target.com",
+        "walmart.com",
+        "bestbuy.com",
     ],
     path_segments: &["product", "category", "review", "deals", "bundle"],
 };
@@ -121,9 +140,11 @@ static ACADEMIC: FlavourVocab = FlavourVocab {
         "graph theory survey",
     ],
     hosts: &[
-        "arxiv-mirror.example",
-        "journal-archive.example",
-        "university-press.example",
+        "arxiv.org",
+        "scholar.google.com",
+        "jstor.org",
+        "pubmed.ncbi.nlm.nih.gov",
+        "semanticscholar.org",
     ],
     path_segments: &["paper", "vol", "issue", "abstract", "bibliography"],
 };
@@ -136,10 +157,11 @@ static GAMING: FlavourVocab = FlavourVocab {
         "retro console emulation",
     ],
     hosts: &[
-        "game-guide.example",
-        "playcritic.example",
-        "speedrun.example",
-        "mod-forum.example",
+        "ign.com",
+        "pcgamer.com",
+        "gamespot.com",
+        "polygon.com",
+        "rockpapershotgun.com",
     ],
     path_segments: &["review", "guide", "patch", "forum", "leaderboard"],
 };
@@ -152,9 +174,11 @@ static COOKING: FlavourVocab = FlavourVocab {
         "pasta dough ratio",
     ],
     hosts: &[
-        "kitchen-notes.example",
-        "recipe-archive.example",
-        "home-cook.example",
+        "allrecipes.com",
+        "food.com",
+        "seriouseats.com",
+        "bonappetit.com",
+        "kingarthurbaking.com",
     ],
     path_segments: &["recipe", "technique", "ingredients", "tips"],
 };
@@ -167,9 +191,10 @@ static TRAVEL: FlavourVocab = FlavourVocab {
         "visa-on-arrival list",
     ],
     hosts: &[
-        "travelogue.example",
-        "guidebook.example",
-        "backpacker.example",
+        "tripadvisor.com",
+        "booking.com",
+        "lonelyplanet.com",
+        "seat61.com",
     ],
     path_segments: &["guide", "itinerary", "tips", "stories"],
 };
@@ -182,9 +207,10 @@ static FINANCE: FlavourVocab = FlavourVocab {
         "tax-loss harvesting",
     ],
     hosts: &[
-        "personal-finance.example",
-        "money-weekly.example",
-        "investing-101.example",
+        "investopedia.com",
+        "bogleheads.org",
+        "marketwatch.com",
+        "finance.yahoo.com",
     ],
     path_segments: &["article", "calc", "guide", "review"],
 };
@@ -211,6 +237,29 @@ pub fn generate(
     sessions
 }
 
+/// Convert a topic string (e.g. "Rust memory safety") to a URL-safe slug
+/// ("rust-memory-safety") in a single pass with a pre-sized allocation.
+///
+/// Replaces the previous 4-allocation pipeline (to_lowercase().replace().
+/// chars().filter().collect()). For ASCII topics — which is all of our
+/// current vocab — this produces identical output.
+fn slugify(topic: &str) -> String {
+    let mut out = String::with_capacity(topic.len());
+    for c in topic.chars() {
+        if c == ' ' {
+            out.push('-');
+        } else if c.is_alphanumeric() || c == '-' {
+            // Lowercase in the same pass. ASCII fast path; non-ASCII falls
+            // through the iterator for correctness.
+            for lc in c.to_lowercase() {
+                out.push(lc);
+            }
+        }
+        // drop everything else (punctuation, etc.)
+    }
+    out
+}
+
 fn generate_session(
     rng: &mut Pcg,
     vocab: &'static FlavourVocab,
@@ -224,15 +273,16 @@ fn generate_session(
     let mut entries = Vec::with_capacity(entry_count as usize);
     let mut total_dwell = 0u32;
 
+    // Why: the slug is derived from the session's topic, which is constant
+    // across entries within a single session. Previously this was
+    // recomputed per entry with four allocations (to_lowercase, replace,
+    // chars().filter().collect()). Hoist + single-pass build drops it to
+    // one allocation per session. Net: N→1 for an N-entry session.
+    let slug = slugify(&topic);
+
     for i in 0..entry_count {
         let host = rng.pick(vocab.hosts);
         let segment = rng.pick(vocab.path_segments);
-        let slug = topic
-            .to_lowercase()
-            .replace(' ', "-")
-            .chars()
-            .filter(|c| c.is_alphanumeric() || *c == '-')
-            .collect::<String>();
         let url = format!("https://{}/{}/{}-{}", host, segment, slug, i);
         let title = format!("{} — part {} — {}", topic, i + 1, host);
         let dwell = 15 + rng.gen_range(240); // 15..255 seconds
@@ -289,15 +339,35 @@ mod tests {
     }
 
     #[test]
-    fn test_urls_are_under_example_hosts() {
-        let sessions = generate(&tech_profile(1), Intensity::Low, 10);
-        for s in &sessions {
-            for e in &s.entries {
-                assert!(
-                    e.url.contains(".example"),
-                    "URL not under example.: {}",
-                    e.url
-                );
+    fn test_urls_never_contain_synthetic_tlds() {
+        // Regression guard for the class of leak that originally prompted
+        // this test's inversion (task #11 fix, 2026-04-17): any .example /
+        // .invalid / .test / .localhost in generated URLs is a fingerprint
+        // that destroys plausible deniability. Run across every flavour +
+        // intensity + a range of seeds so a single bad vocab entry is
+        // caught regardless of RNG path.
+        for flavour in Flavour::ALL {
+            for intensity in [Intensity::Low, Intensity::Medium, Intensity::High, Intensity::Max] {
+                for seed in 0..4u64 {
+                    let profile = BrowsingProfile {
+                        seed,
+                        flavour: *flavour,
+                        user_agent: None,
+                        timezone: None,
+                    };
+                    let sessions = generate(&profile, intensity, 5);
+                    for s in &sessions {
+                        for e in &s.entries {
+                            for bad in [".example", ".invalid", ".test", ".localhost"] {
+                                assert!(
+                                    !e.url.contains(bad),
+                                    "URL contains synthetic TLD {bad}: {} (flavour={flavour:?}, intensity={intensity:?}, seed={seed})",
+                                    e.url,
+                                );
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -392,6 +462,121 @@ mod tests {
             // High intensity targets 15 with ±2 jitter → 13..17.
             assert!(s.entries.len() >= 13);
             assert!(s.entries.len() <= 17);
+        }
+    }
+
+    #[test]
+    fn slugify_basic() {
+        assert_eq!(slugify("Hello World"), "hello-world");
+        assert_eq!(slugify("Rust memory safety"), "rust-memory-safety");
+        assert_eq!(slugify("WebAssembly module layout"), "webassembly-module-layout");
+    }
+
+    #[test]
+    fn slugify_drops_punctuation() {
+        assert_eq!(slugify("What's new?"), "whats-new");
+        assert_eq!(slugify("Step 1: begin"), "step-1-begin");
+        assert_eq!(slugify("Rust (the language)"), "rust-the-language");
+    }
+
+    #[test]
+    fn slugify_preserves_existing_hyphens() {
+        assert_eq!(slugify("sourdough-hydration"), "sourdough-hydration");
+        assert_eq!(slugify("TLS 1.3 handshake"), "tls-13-handshake");
+    }
+
+    #[test]
+    fn slugify_is_idempotent() {
+        let s = slugify("Complex Topic Title");
+        assert_eq!(s, slugify(&s));
+    }
+
+    #[test]
+    fn slugify_output_matches_prior_pipeline() {
+        // Regression lock: the old 4-allocation pipeline was
+        //   topic.to_lowercase().replace(' ', "-").chars()
+        //        .filter(|c| c.is_alphanumeric() || *c == '-').collect::<String>()
+        // The new slugify() must produce byte-identical output for every
+        // vocab topic. Tolerates zero drift — a change here requires
+        // regenerating the determinism fixtures.
+        for flavour in Flavour::ALL {
+            let vocab = FlavourVocab::for_flavour(*flavour);
+            for topic in vocab.topics {
+                let old: String = topic
+                    .to_lowercase()
+                    .replace(' ', "-")
+                    .chars()
+                    .filter(|c| c.is_alphanumeric() || *c == '-')
+                    .collect();
+                let new = slugify(topic);
+                assert_eq!(new, old, "slugify drift on topic {topic:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn slugify_empty_is_empty() {
+        assert_eq!(slugify(""), "");
+    }
+
+    #[test]
+    fn test_generated_urls_always_use_https() {
+        // Why: MV3 service workers cannot fetch mixed-content, and Chrome
+        // strips `http://` URLs from `chrome.history.addUrl` calls in many
+        // contexts. A generator that emits `http://` URLs produces a
+        // forensically *less* plausible history (modern browsing is
+        // overwhelmingly HTTPS) AND silently drops entries. Pin the
+        // invariant.
+        let mut combos = Vec::new();
+        for flavour in Flavour::ALL {
+            for intensity in [
+                Intensity::Low,
+                Intensity::Medium,
+                Intensity::High,
+                Intensity::Max,
+            ] {
+                for seed in 0..8u64 {
+                    combos.push((*flavour, intensity, seed));
+                }
+            }
+        }
+        for (flavour, intensity, seed) in combos {
+            let profile = BrowsingProfile {
+                seed,
+                flavour,
+                user_agent: None,
+                timezone: None,
+            };
+            let sessions = generate(&profile, intensity, 3);
+            for s in &sessions {
+                for e in &s.entries {
+                    assert!(
+                        e.url.starts_with("https://"),
+                        "expected https:// URL; got {:?} (flavour={:?}, intensity={:?}, seed={seed})",
+                        e.url, flavour, intensity,
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_urls_have_no_whitespace_or_control_chars() {
+        // Why: URLs with embedded whitespace/control chars silently fail
+        // in `chrome.history.addUrl` and can cause inconsistent round-trips
+        // through `URL` parsers. Whatever the source vocab, generated URLs
+        // must be clean.
+        let sessions = generate(&tech_profile(42), Intensity::Max, 20);
+        for s in &sessions {
+            for e in &s.entries {
+                for c in e.url.chars() {
+                    assert!(
+                        !c.is_whitespace() && !c.is_control(),
+                        "URL contains whitespace/control char: {:?}",
+                        e.url,
+                    );
+                }
+            }
         }
     }
 }
