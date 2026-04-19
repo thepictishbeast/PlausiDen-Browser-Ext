@@ -20,11 +20,32 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
       - name: Check manifest permission allowlist
-        run: ./../../scripts/dev/check-manifest-permissions.sh .
-        # The script can be called against the repo root or a sibling
-        # checkout. In CI we run from the extension root directly.
-        env:
-          PLAUSIDEN_BROWSER_EXT: "."
+        run: |
+          # Inline permission allowlist check — the authoritative list
+          # is {history, cookies, storage, alarms}. Any new permission
+          # must be added here AND justified in OPSEC.md §4.
+          set -e
+          ALLOW='^(history|cookies|storage|alarms)$'
+          DENY='^(host_permissions|webRequest|tabs|activeTab|declarativeNetRequest|proxy|scripting)$'
+          for manifest in manifests/chrome/manifest.json manifests/firefox/manifest.json; do
+            echo "== checking $manifest =="
+            perms=$(jq -r '.permissions[]?' "$manifest" 2>/dev/null)
+            for p in $perms; do
+              if ! echo "$p" | grep -qE "$ALLOW"; then
+                echo "::error::$manifest declares permission '$p' not in allowlist {history,cookies,storage,alarms}"
+                exit 1
+              fi
+            done
+            # Denied keys should not appear at all
+            for k in host_permissions optional_host_permissions; do
+              val=$(jq -r ".${k}? | length" "$manifest" 2>/dev/null)
+              if [ "$val" != "null" ] && [ "$val" != "0" ]; then
+                echo "::error::$manifest declares $k ($val entries) — deny"
+                exit 1
+              fi
+            done
+          done
+          echo "allowlist: clean"
 
   wasm-engine-tests:
     runs-on: ubuntu-latest
