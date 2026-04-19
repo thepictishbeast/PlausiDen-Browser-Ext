@@ -58,7 +58,7 @@ export const STALE_AFTER_MS = PROBE_INTERVAL_MS * 2.5;
 
 const STORAGE_KEY = "plausiden_self_check";
 /** Reserved RFC-6761 TLD; never a real URL. */
-const PROBE_HOST = "self-check.plausiden.invalid";
+const PROBE_HOST = "self-check.plausiden.invalid"; // LEAK-JUSTIFIED: RFC 6761 reserved TLD; probe URL added + immediately deleteUrl'd in a bounded round-trip (see §4.5 OPSEC.md)
 
 const INITIAL_STATE: SelfCheckState = {
     status: "pending",

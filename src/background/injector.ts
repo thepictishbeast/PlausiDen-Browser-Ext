@@ -56,10 +56,10 @@ import { logWarn } from "../shared/log";
  *  Keep in sync with tests/generator-no-synthetic-tld.test.ts and
  *  the Rust proptest in wasm-engine/tests/property.rs. */
 const BANNED_TLDS: readonly string[] = [
-  ".example",
-  ".test",
-  ".invalid",
-  ".localhost",
+  ".example",   // LEAK-JUSTIFIED: banned-TLD filter list, not a URL
+  ".test",      // LEAK-JUSTIFIED: banned-TLD filter list, not a URL
+  ".invalid",   // LEAK-JUSTIFIED: banned-TLD filter list, not a URL
+  ".localhost", // LEAK-JUSTIFIED: banned-TLD filter list, not a URL
 ];
 
 /** Return the offending TLD if `url`'s host ends with one of the
