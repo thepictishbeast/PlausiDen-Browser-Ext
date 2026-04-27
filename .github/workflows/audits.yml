@@ -17,8 +17,9 @@ jobs:
     runs-on: [self-hosted, linux, x64, plausiden]
     steps:
       - uses: actions/checkout@v4
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
+      # jq is pre-provisioned on the self-hosted runner; relying on
+      # apt-get update was flaking on stale mirrors. AVP-PASS: 2026-04-27
+      # — removed install step to drop the fragile apt path.
       - name: Check manifest permission allowlist
         run: |
           # Inline permission allowlist check — the authoritative list
@@ -72,8 +73,8 @@ jobs:
     runs-on: [self-hosted, linux, x64, plausiden]
     steps:
       - uses: actions/checkout@v4
-      - name: Install ripgrep
-        run: sudo apt-get update && sudo apt-get install -y ripgrep
+      # ripgrep is pre-provisioned on the self-hosted runner; apt step was
+      # flaking on mirror staleness. AVP-PASS: 2026-04-27 — removed step.
       - name: Run leak audit
         run: |
           # Shipped audit runner from sibling infra. In CI we vendor a
