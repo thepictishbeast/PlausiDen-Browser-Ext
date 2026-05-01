@@ -12,8 +12,8 @@ body {
     line-height: var(--pd-lh-normal);
     color: var(--pd-color-fg);
     background: var(--pd-color-bg);
-    width: 320px;
-    min-height: 240px;
+    width: 320px; /* loom-allow: popup chrome — Chrome's max popup width is fixed regardless of layout scale */
+    min-height: 240px; /* loom-allow: popup chrome — minimum height for traffic-light visibility */
 }
 
 .container {
@@ -56,14 +56,14 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 14px;
-    height: 14px;
+    width: 14px; /* loom-allow: 14px-square icon glyph — pre-Loom icon scale */
+    height: 14px; /* loom-allow: 14px-square icon glyph — pre-Loom icon scale */
     flex-shrink: 0;
 }
 
 .traffic-light__dot {
-    width: 10px;
-    height: 10px;
+    width: 10px; /* loom-allow: traffic-light dot glyph — fixed visual size */
+    height: 10px; /* loom-allow: traffic-light dot glyph — fixed visual size */
     border-radius: var(--pd-radius-full);
     background: var(--pd-color-fg-subtle);
     transition: background var(--pd-duration-normal) var(--pd-easing),
@@ -94,8 +94,8 @@ body {
 /* ---- Skeleton / loading state ---- */
 .skeleton {
     display: inline-block;
-    min-width: 2.5em;
-    height: 0.9em;
+    min-width: 2.5em; /* loom-allow: skeleton-loader caps tied to em scale, not loom space scale */
+    height: 0.9em; /* loom-allow: skeleton-loader caps tied to em scale, not loom space scale */
     vertical-align: middle;
     border-radius: var(--pd-radius-sm);
     background: linear-gradient(

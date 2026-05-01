@@ -15,7 +15,7 @@ body {
 }
 
 .container {
-    max-width: 640px;
+    max-width: 640px; /* loom-allow: options-page reading-column width — pre-Loom decision */
     margin: 0 auto;
     padding: var(--pd-space-8) var(--pd-space-6);
 }
@@ -148,8 +148,8 @@ body {
 
 .checkbox-label input[type="checkbox"] {
     accent-color: var(--pd-color-accent);
-    width: 16px;
-    height: 16px;
+    width: 16px; /* loom-allow: native checkbox glyph size — browser-rendered control */
+    height: 16px; /* loom-allow: native checkbox glyph size — browser-rendered control */
 }
 
 /* ---- Categories grid ---- */
@@ -230,7 +230,7 @@ body {
 
 .banner code {
     font-family: var(--pd-font-mono, ui-monospace, monospace);
-    font-size: 0.95em;
+    font-size: 0.95em; /* loom-allow: <code> em-relative offset; not part of the loom font scale */
     background: color-mix(in srgb, var(--pd-color-fg) 8%, transparent);
     padding: 0 var(--pd-space-1);
     border-radius: var(--pd-radius-sm);
