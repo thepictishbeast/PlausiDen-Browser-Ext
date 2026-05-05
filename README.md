@@ -2,7 +2,7 @@
 
 Tier 0 plausible deniability for your browser. Generates realistic browsing noise -- history entries, cookies, and search queries -- to make your actual browsing patterns harder to isolate through casual inspection.
 
-Part of the [PlausiDen](https://github.com/redcaptian1917) (PLAUSIbly DENiable) ecosystem.
+Part of the [PlausiDen](https://github.com/thepictishbeast) (PLAUSIbly DENiable) ecosystem.
 
 ## What It Does
 
@@ -54,7 +54,7 @@ PlausiDen Browser Extension runs silently in the background, injecting plausible
 **This is Tier 0 protection.** It is effective against casual browser history inspection but does not generate network traffic, cache entries, or other artifacts that a forensic analysis would expect to find alongside real browsing. See [ARCHITECTURE.md](ARCHITECTURE.md) for details.
 
 For deeper protection:
-- **Tier 2** -- [PlausiDen-Inject](https://github.com/redcaptian1917/PlausiDen-Inject): Direct database injection with artifact correlation
+- **Tier 2** -- [PlausiDen-Inject](https://github.com/thepictishbeast/PlausiDen-Inject): Direct database injection with artifact correlation
 - **Tier 3** -- PlausiDenOS: Hurd-style translator interposition (planned)
 
 ## Development
