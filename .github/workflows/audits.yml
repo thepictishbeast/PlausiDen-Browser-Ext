@@ -14,7 +14,7 @@ on:
 
 jobs:
   manifest-permission-allowlist:
-    runs-on: [self-hosted, linux, x64, plausiden]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       # jq is pre-provisioned on the self-hosted runner; relying on
@@ -49,7 +49,7 @@ jobs:
           echo "allowlist: clean"
 
   wasm-engine-tests:
-    runs-on: [self-hosted, linux, x64, plausiden]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -70,7 +70,7 @@ jobs:
           cargo check --target wasm32-unknown-unknown
 
   leak-audit:
-    runs-on: [self-hosted, linux, x64, plausiden]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       # ripgrep is pre-provisioned on the self-hosted runner; apt step was
