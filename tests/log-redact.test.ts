@@ -85,14 +85,14 @@ test("redacts email addresses", () => {
     );
     // Keeps message structure
     assert.match(
-        redactSecrets("user redcaptian1917@gmail.com"),
+        redactSecrets("user jdoe1984@example.org"),
         /user \[email\]/,
     );
 });
 
 test("redacts POSIX user home paths", () => {
     assert.equal(
-        redactSecrets("read /home/redcap/.config/something"),
+        redactSecrets("read /home/jdoe/.config/something"),
         "read /home/[user]/.config/something",
     );
     assert.equal(
