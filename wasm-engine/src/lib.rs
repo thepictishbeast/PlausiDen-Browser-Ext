@@ -15,9 +15,23 @@
 //!
 //! # Privacy
 //!
-//! No network. No `thread_rng` or OS entropy calls (both are
-//! problematic in WASM). All randomness is a splittable LCG keyed
-//! by the profile seed.
+//! No network. No `thread_rng` or OS entropy calls (both are problematic in
+//! WASM). All randomness comes from ChaCha20 (RFC 8439) in counter mode,
+//! keyed by the caller's seed — see [`rng`].
+//!
+//! Unpredictability is **load-bearing**, which is why the generator is a
+//! CSPRNG and not the PCG it used to be. Because the extension keeps the seed
+//! and discards the decoy list — a stored list of injected URLs would itself
+//! be the incriminating artifact — anyone who could recover the generator
+//! state from a few observed decoys could enumerate them all, separating
+//! injected history from real history exactly and inverting the property this
+//! engine exists to provide.
+//!
+//! ⚠ **Set `seed_hex`, not `seed`.** A 64-bit seed is brute-forceable however
+//! strong the cipher is; `seed_hex` takes 32 bytes from
+//! `crypto.getRandomValues`. A malformed `seed_hex` is returned as an error
+//! rather than falling back to the narrow path, so a typo cannot silently
+//! downgrade the caller.
 
 mod generator;
 mod profile;
@@ -85,7 +99,14 @@ pub fn generate_batch(profile_json: &str, intensity: &str, count: u32) -> String
     };
 
     let clamped_count = count.min(1024);
-    let sessions = generator::generate(&profile, intensity, clamped_count);
+    // A malformed `seed_hex` is surfaced as a JSON error like every other
+    // input fault here, rather than falling back to the 64-bit `seed`.
+    // Falling back would quietly hand the caller the weak path they were
+    // trying to avoid, and they would have no way to tell.
+    let sessions = match generator::generate(&profile, intensity, clamped_count) {
+        Ok(s) => s,
+        Err(e) => return format!(r#"{{"error":"{}"}}"#, e.replace('"', "'")),
+    };
     serde_json::to_string(&sessions).unwrap_or_else(|e| {
         format!(r#"{{"error":"failed to serialize sessions: {}"}}"#, e)
     })

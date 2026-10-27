@@ -7,7 +7,8 @@
 //! pools per flavour. No real user data is used.
 
 use crate::profile::{BrowsingProfile, Flavour, Intensity};
-use crate::rng::Pcg;
+use crate::profile::SeedMaterial;
+use crate::rng::CsRng;
 use serde::{Deserialize, Serialize};
 
 /// One browsing entry: a single URL the user visited.
@@ -219,12 +220,20 @@ static FINANCE: FlavourVocab = FlavourVocab {
 ///
 /// Deterministic: same (seed, flavour, intensity, count) always
 /// produces the same output.
+/// # Errors
+/// Returns `Err` if `profile.seed_hex` is present but malformed. That is a
+/// hard error rather than a fallback to the 64-bit `seed`, because silently
+/// downgrading would cost the caller the unpredictability property they set
+/// `seed_hex` to obtain.
 pub fn generate(
     profile: &BrowsingProfile,
     intensity: Intensity,
     count: u32,
-) -> Vec<BrowsingSession> {
-    let mut rng = Pcg::new(profile.seed);
+) -> Result<Vec<BrowsingSession>, String> {
+    let mut rng = match profile.resolve_seed()? {
+        SeedMaterial::Full256(seed) => CsRng::from_seed_32(seed),
+        SeedMaterial::Narrow64(seed) => CsRng::from_u64(seed),
+    };
     let vocab = FlavourVocab::for_flavour(profile.flavour);
     let target_entries = intensity.entries_per_session();
     let mut sessions = Vec::with_capacity(count as usize);
@@ -234,7 +243,8 @@ pub fn generate(
         sessions.push(generate_session(&mut session_rng, vocab, target_entries));
     }
 
-    sessions
+    Ok(sessions)
+
 }
 
 /// Convert a topic string (e.g. "Rust memory safety") to a URL-safe slug
@@ -261,7 +271,7 @@ fn slugify(topic: &str) -> String {
 }
 
 fn generate_session(
-    rng: &mut Pcg,
+    rng: &mut CsRng,
     vocab: &'static FlavourVocab,
     target_entries: u32,
 ) -> BrowsingSession {
@@ -311,6 +321,7 @@ mod tests {
     fn tech_profile(seed: u64) -> BrowsingProfile {
         BrowsingProfile {
             seed,
+            seed_hex: None,
             flavour: Flavour::Tech,
             user_agent: None,
             timezone: None,
@@ -319,19 +330,19 @@ mod tests {
 
     #[test]
     fn test_generate_empty_count() {
-        let sessions = generate(&tech_profile(1), Intensity::Low, 0);
+        let sessions = generate(&tech_profile(1), Intensity::Low, 0).expect("seed resolves");
         assert!(sessions.is_empty());
     }
 
     #[test]
     fn test_generate_has_expected_count() {
-        let sessions = generate(&tech_profile(1), Intensity::Low, 5);
+        let sessions = generate(&tech_profile(1), Intensity::Low, 5).expect("seed resolves");
         assert_eq!(sessions.len(), 5);
     }
 
     #[test]
     fn test_sessions_have_non_empty_entries() {
-        let sessions = generate(&tech_profile(1), Intensity::Medium, 10);
+        let sessions = generate(&tech_profile(1), Intensity::Medium, 10).expect("seed resolves");
         for s in &sessions {
             assert!(!s.entries.is_empty());
             assert!(!s.topic.is_empty());
@@ -351,11 +362,12 @@ mod tests {
                 for seed in 0..4u64 {
                     let profile = BrowsingProfile {
                         seed,
+                        seed_hex: None,
                         flavour: *flavour,
                         user_agent: None,
                         timezone: None,
                     };
-                    let sessions = generate(&profile, intensity, 5);
+                    let sessions = generate(&profile, intensity, 5).expect("seed resolves");
                     for s in &sessions {
                         for e in &s.entries {
                             for bad in [".example", ".invalid", ".test", ".localhost"] { // LEAK-JUSTIFIED: test-assertion literals, not emissions
@@ -374,7 +386,7 @@ mod tests {
 
     #[test]
     fn test_scroll_depth_is_bounded() {
-        let sessions = generate(&tech_profile(42), Intensity::Max, 20);
+        let sessions = generate(&tech_profile(42), Intensity::Max, 20).expect("seed resolves");
         for s in &sessions {
             for e in &s.entries {
                 assert!(e.scroll_depth_percent <= 100);
@@ -384,7 +396,7 @@ mod tests {
 
     #[test]
     fn test_duration_is_sum_of_dwell() {
-        let sessions = generate(&tech_profile(99), Intensity::Medium, 5);
+        let sessions = generate(&tech_profile(99), Intensity::Medium, 5).expect("seed resolves");
         for s in &sessions {
             let sum: u32 = s.entries.iter().map(|e| e.dwell_seconds).sum();
             assert_eq!(s.duration_seconds, sum);
@@ -393,8 +405,8 @@ mod tests {
 
     #[test]
     fn test_determinism_across_runs() {
-        let a = generate(&tech_profile(777), Intensity::Medium, 10);
-        let b = generate(&tech_profile(777), Intensity::Medium, 10);
+        let a = generate(&tech_profile(777), Intensity::Medium, 10).expect("seed resolves");
+        let b = generate(&tech_profile(777), Intensity::Medium, 10).expect("seed resolves");
         let a_json = serde_json::to_string(&a).unwrap();
         let b_json = serde_json::to_string(&b).unwrap();
         assert_eq!(a_json, b_json);
@@ -402,8 +414,8 @@ mod tests {
 
     #[test]
     fn test_different_seeds_differ() {
-        let a = generate(&tech_profile(1), Intensity::Medium, 10);
-        let b = generate(&tech_profile(2), Intensity::Medium, 10);
+        let a = generate(&tech_profile(1), Intensity::Medium, 10).expect("seed resolves");
+        let b = generate(&tech_profile(2), Intensity::Medium, 10).expect("seed resolves");
         let a_json = serde_json::to_string(&a).unwrap();
         let b_json = serde_json::to_string(&b).unwrap();
         assert_ne!(a_json, b_json);
@@ -413,24 +425,26 @@ mod tests {
     fn test_different_flavours_pick_different_topics() {
         let tech = generate(
             &BrowsingProfile {
-                seed: 1,
+                seed_hex: None,
+            seed: 1,
                 flavour: Flavour::Tech,
                 user_agent: None,
                 timezone: None,
             },
             Intensity::Low,
             5,
-        );
+        ).expect("seed resolves");
         let cooking = generate(
             &BrowsingProfile {
-                seed: 1,
+                seed_hex: None,
+            seed: 1,
                 flavour: Flavour::Cooking,
                 user_agent: None,
                 timezone: None,
             },
             Intensity::Low,
             5,
-        );
+        ).expect("seed resolves");
         assert_ne!(
             tech[0].topic, cooking[0].topic,
             "tech and cooking topics collided"
@@ -442,14 +456,15 @@ mod tests {
         for f in Flavour::ALL {
             let sessions = generate(
                 &BrowsingProfile {
-                    seed: 1,
+                    seed_hex: None,
+            seed: 1,
                     flavour: *f,
                     user_agent: None,
                     timezone: None,
                 },
                 Intensity::Low,
                 3,
-            );
+            ).expect("seed resolves");
             assert_eq!(sessions.len(), 3);
             assert!(!sessions[0].topic.is_empty());
         }
@@ -457,7 +472,7 @@ mod tests {
 
     #[test]
     fn test_session_count_not_too_few_entries() {
-        let sessions = generate(&tech_profile(1), Intensity::High, 5);
+        let sessions = generate(&tech_profile(1), Intensity::High, 5).expect("seed resolves");
         for s in &sessions {
             // High intensity targets 15 with ±2 jitter → 13..17.
             assert!(s.entries.len() >= 13);
@@ -543,11 +558,12 @@ mod tests {
         for (flavour, intensity, seed) in combos {
             let profile = BrowsingProfile {
                 seed,
+                seed_hex: None,
                 flavour,
                 user_agent: None,
                 timezone: None,
             };
-            let sessions = generate(&profile, intensity, 3);
+            let sessions = generate(&profile, intensity, 3).expect("seed resolves");
             for s in &sessions {
                 for e in &s.entries {
                     assert!(
@@ -566,7 +582,7 @@ mod tests {
         // in `chrome.history.addUrl` and can cause inconsistent round-trips
         // through `URL` parsers. Whatever the source vocab, generated URLs
         // must be clean.
-        let sessions = generate(&tech_profile(42), Intensity::Max, 20);
+        let sessions = generate(&tech_profile(42), Intensity::Max, 20).expect("seed resolves");
         for s in &sessions {
             for e in &s.entries {
                 for c in e.url.chars() {
